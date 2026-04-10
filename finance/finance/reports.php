@@ -12,6 +12,8 @@ function f($n) { return '$' . number_format($n, 2); }
 // Fetch Data from Logic Layer
 $budget_data = getBudgetData();
 $bs_data = getBalanceSheet();
+$is_data = getIncomeStatement();
+$cash_flow = getCashFlow()->fetch_assoc();
 
 // Calculate Global Totals for Summary Cards
 $total_assets = 0;
@@ -58,6 +60,24 @@ while($s_row = $summary_query->fetch_assoc()){
                 <div class="h3 fw-bold mb-0 text-dark">
                     <i class="bi bi-patch-check-fill text-primary"></i> Compliant
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-5">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm bg-white p-3 border-start border-success border-4 h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.7rem;">Income Statement</div>
+                <div class="d-flex justify-content-between mt-2"><span>Total Revenue</span><strong class="text-success"><?= f($total_revenue) ?></strong></div>
+                <div class="d-flex justify-content-between"><span>Total Expenses</span><strong class="text-danger"><?php $expense_total = $conn->query("SELECT IFNULL(SUM(balance),0) as total FROM chart_of_accounts WHERE account_type='Expense'")->fetch_assoc()['total'] ?? 0; echo f(abs($expense_total)); ?></strong></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm bg-white p-3 border-start border-info border-4 h-100">
+                <div class="small text-muted fw-bold text-uppercase" style="font-size: 0.7rem;">Cash Flow</div>
+                <div class="d-flex justify-content-between mt-2"><span>Cash In</span><strong class="text-success"><?= f($cash_flow['cash_in'] ?? 0) ?></strong></div>
+                <div class="d-flex justify-content-between"><span>Cash Out</span><strong class="text-danger"><?= f($cash_flow['cash_out'] ?? 0) ?></strong></div>
+                <div class="d-flex justify-content-between"><span>Net Cash</span><strong><?= f($cash_flow['net_cash'] ?? 0) ?></strong></div>
             </div>
         </div>
     </div>
@@ -154,6 +174,34 @@ while($s_row = $summary_query->fetch_assoc()){
                                 <td class="text-end pe-3"><?= f($total_assets) ?></td>
                             </tr>
                         </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0">Income Statement Accounts</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3 small text-uppercase">Account</th>
+                                <th class="text-center small text-uppercase">Type</th>
+                                <th class="text-end pe-3 small text-uppercase">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php while($row = $is_data->fetch_assoc()): ?>
+                            <tr>
+                                <td class="ps-3"><?= htmlspecialchars($row['account_name']) ?></td>
+                                <td class="text-center"><span class="badge bg-light text-dark border"><?= strtoupper($row['account_type']) ?></span></td>
+                                <td class="text-end pe-3 fw-bold <?= $row['account_type'] == 'Revenue' ? 'text-success' : 'text-danger' ?>"><?= f($row['balance']) ?></td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
                     </table>
                 </div>
             </div>

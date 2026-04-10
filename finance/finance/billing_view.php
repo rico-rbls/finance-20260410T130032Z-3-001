@@ -21,7 +21,7 @@ $result = $conn->query($query);
                 <h5 class="modal-title fw-bold">Issue New Student Invoice</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="api_handler.php" method="POST">
+            <form id="createInvoiceForm">
                 <div class="modal-body">
                     <input type="hidden" name="action" value="create_invoice">
                     <div class="mb-3">
@@ -86,6 +86,8 @@ $result = $conn->query($query);
                             <td class="text-center">
                                 <?php if($row['status'] == 'paid'): ?>
                                     <span class="badge bg-success-subtle text-success border border-success">PAID</span>
+                                <?php elseif($row['status'] == 'partial'): ?>
+                                    <span class="badge bg-info-subtle text-info border border-info">PARTIAL</span>
                                 <?php else: ?>
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">UNPAID</span>
                                 <?php endif; ?>
@@ -151,6 +153,14 @@ $(document).ready(function() {
         $('#modal_inv_id').val($(this).data('id'));
         $('#modal_pay_amt').val($(this).data('amt'));
         new bootstrap.Modal('#paymentModal').show();
+    });
+
+    $('#createInvoiceForm').submit(function(e) {
+        e.preventDefault();
+        $.post('api_handler.php', $(this).serialize(), function(res) {
+            alert(res);
+            location.reload();
+        });
     });
 
     $('#paymentForm').submit(function(e) {

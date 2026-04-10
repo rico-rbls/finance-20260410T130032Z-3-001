@@ -88,12 +88,16 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                             <td><?= $row['vendor_name'] ?></td>
                             <td class="text-end fw-bold">$<?= number_format($row['total_amount'], 2) ?></td>
                             <td class="text-center">
-                                <span class="badge <?= $row['status'] == 'approved' ? 'bg-info' : 'bg-secondary' ?>">
+                                <span class="badge <?= $row['status'] == 'approved' ? 'bg-info' : ($row['status'] == 'received' ? 'bg-success' : 'bg-secondary') ?>">
                                     <?= strtoupper($row['status']) ?>
                                 </span>
                             </td>
                             <td class="text-end pe-3">
-                                <?php if($row['status'] == 'approved'): ?>
+                                <?php if($row['status'] == 'pending'): ?>
+                                    <button class="btn btn-sm btn-warning fw-bold approve-po-btn me-1" data-id="<?= $row['po_id'] ?>">
+                                        Approve
+                                    </button>
+                                <?php elseif($row['status'] == 'approved'): ?>
                                     <button class="btn btn-sm btn-success fw-bold receive-btn" data-id="<?= $row['po_id'] ?>">
                                         Mark Received
                                     </button>
@@ -123,6 +127,16 @@ $(document).ready(function() {
             alert(response);
             location.reload();
         });
+    });
+
+    $(document).on('click', '.approve-po-btn', function() {
+        let poId = $(this).data('id');
+        if(confirm('Approve this purchase order?')) {
+            $.post('api_handler.php', {action: 'approve_po', po_id: poId}, function(response) {
+                alert(response);
+                location.reload();
+            });
+        }
     });
 
     // Mark as Received

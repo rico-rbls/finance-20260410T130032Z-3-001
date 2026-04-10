@@ -1,6 +1,6 @@
 <?php
 include 'db_connect.php';
-include 'finance_logic.php'; // To use the recordJournalEntry function
+include_once 'finance_logic.php'; // To use the recordJournalEntry function
 
 function processPurchaseOrder($po_id) {
     global $conn;
@@ -13,22 +13,21 @@ function processPurchaseOrder($po_id) {
     $po = $stmt->get_result()->fetch_assoc();
 
     if ($po['status'] == 'approved') {
-        $amount = $po['total_amount'];
-        
-        // 2. Automate Journal Entry: Debit Expense (Account ID 4), Credit AP (Account ID 3)
-        // Note: Assumes Account 3 is Accounts Payable, Account 4 is General Expense
+        $amount = (float) $po['total_amount'];
+
         $desc = "PO #$po_id Received - Vendor ID: " . $po['vendor_id'];
-        $ledger_success = recordJournalEntry($desc, 'Purchase_Order', $po_id, 4, 3, $amount);
+        $ledger_success = recordJournalEntry($desc, 'Purchase_Order', $po_id, 10, 3, $amount);
 
         if ($ledger_success) {
-            // 3. Update PO status to 'received'
+            adjustAccountBalance(10, $amount);
+            adjustAccountBalance(3, $amount);
+
+            $ap_id = createApInvoice($po_id, $po['vendor_id'], $po['dept_id'], $amount);
+
             $conn->query("UPDATE purchase_orders SET status = 'received' WHERE po_id = $po_id");
-            
-            // 4. Finalize the Budget Reservation (Commit it)
-            $conn->query("UPDATE budget_reservations SET status = 'committed' 
-                          WHERE dept_id = {$po['dept_id']} AND description LIKE '%PO #$po_id%'");
-            
-            return "PO Received: Inventory Updated & AP Invoice Generated.";
+            $conn->query("UPDATE budget_reservations SET status = 'committed' WHERE po_id = $po_id");
+
+            return $ap_id ? "PO Received: AP invoice generated and ledger updated." : "PO Received: Ledger updated, but AP invoice could not be created.";
         }
     }
     return "Error: PO must be in 'approved' status to receive.";

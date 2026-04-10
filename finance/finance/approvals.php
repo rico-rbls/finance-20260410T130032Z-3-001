@@ -95,4 +95,22 @@ $('.approve-btn').click(function() {
         });
     }
 });
+
+$('.reject-btn').click(function() {
+    const id = $(this).data('id');
+    const btn = $(this);
+    
+    if(confirm('Reject this reservation?')) {
+        btn.prop('disabled', true).html('Processing...');
+        
+        $.post('api_handler.php', { action: 'reject_reservation', res_id: id }, function(response) {
+            if(response.trim() === "success") {
+                $('#row-' + id).fadeOut();
+            } else {
+                alert("Error: " + response);
+                btn.prop('disabled', false).html('Reject');
+            }
+        });
+    }
+});
 </script>

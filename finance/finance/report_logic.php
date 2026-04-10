@@ -19,4 +19,26 @@ function getBalanceSheet() {
     $sql = "SELECT account_name, account_type, balance FROM chart_of_accounts ORDER BY account_type";
     return $conn->query($sql);
 }
+
+// Function to get Income Statement Data
+function getIncomeStatement() {
+    global $conn;
+    $sql = "SELECT account_name, account_type, balance 
+            FROM chart_of_accounts 
+            WHERE account_type IN ('Revenue', 'Expense')
+            ORDER BY account_type, account_name";
+    return $conn->query($sql);
+}
+
+// Function to get Cash Flow Summary
+function getCashFlow() {
+    global $conn;
+    $sql = "SELECT 
+                COALESCE(SUM(CASE WHEN ld.debit > 0 THEN ld.debit ELSE 0 END), 0) AS cash_in,
+                COALESCE(SUM(CASE WHEN ld.credit > 0 THEN ld.credit ELSE 0 END), 0) AS cash_out,
+                COALESCE(SUM(CASE WHEN ld.debit > 0 THEN ld.debit ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN ld.credit > 0 THEN ld.credit ELSE 0 END), 0) AS net_cash
+            FROM ledger_details ld
+            WHERE ld.account_id = 4";
+    return $conn->query($sql);
+}
 ?>

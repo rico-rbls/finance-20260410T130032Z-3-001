@@ -30,6 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `budget_reservations` (
   `res_id` int(11) NOT NULL,
   `dept_id` int(11) DEFAULT NULL,
+  `po_id` int(11) DEFAULT NULL,
   `description` varchar(255) DEFAULT NULL,
   `amount_reserved` decimal(15,2) DEFAULT NULL,
   `status` enum('pending','committed','cancelled') DEFAULT 'pending'
@@ -72,7 +73,8 @@ INSERT INTO `chart_of_accounts` (`account_id`, `account_name`, `account_type`, `
 (6, 'Tuition Revenue', 'Revenue', 0.00),
 (7, 'Institutional Budget', 'Equity', 500000.00),
 (8, 'Accounts Payable', 'Liability', 0.00),
-(9, 'Accounts Payable', 'Liability', 0.00);
+(9, 'Accounts Payable', 'Liability', 0.00),
+(10, 'Supplies Expense', 'Expense', 0.00);
 
 -- --------------------------------------------------------
 
@@ -178,6 +180,36 @@ CREATE TABLE `payments` (
   `amount_paid` decimal(15,2) DEFAULT NULL,
   `payment_date` timestamp NOT NULL DEFAULT current_timestamp(),
   `payment_method` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ap_invoices`
+--
+
+CREATE TABLE `ap_invoices` (
+  `ap_id` int(11) NOT NULL AUTO_INCREMENT,
+  `po_id` int(11) DEFAULT NULL,
+  `vendor_id` int(11) DEFAULT NULL,
+  `dept_id` int(11) DEFAULT NULL,
+  `amount_due` decimal(15,2) DEFAULT NULL,
+  `status` enum('unpaid','partial','paid') DEFAULT 'unpaid',
+  `date_issued` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `vendor_payments`
+--
+
+CREATE TABLE `vendor_payments` (
+  `vendor_payment_id` int(11) NOT NULL AUTO_INCREMENT,
+  `ap_id` int(11) DEFAULT NULL,
+  `amount_paid` decimal(15,2) DEFAULT NULL,
+  `payment_method` varchar(50) DEFAULT NULL,
+  `payment_date` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -364,6 +396,18 @@ ALTER TABLE `payments`
   MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `ap_invoices`
+--
+ALTER TABLE `ap_invoices`
+  MODIFY `ap_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `vendor_payments`
+--
+ALTER TABLE `vendor_payments`
+  MODIFY `vendor_payment_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
@@ -389,7 +433,29 @@ ALTER TABLE `vendors`
 -- Constraints for table `budget_reservations`
 --
 ALTER TABLE `budget_reservations`
-  ADD CONSTRAINT `budget_reservations_ibfk_1` FOREIGN KEY (`dept_id`) REFERENCES `departments` (`dept_id`);
+  ADD KEY `po_id` (`po_id`),
+  ADD CONSTRAINT `budget_reservations_ibfk_1` FOREIGN KEY (`dept_id`) REFERENCES `departments` (`dept_id`),
+  ADD CONSTRAINT `budget_reservations_ibfk_2` FOREIGN KEY (`po_id`) REFERENCES `purchase_orders` (`po_id`);
+
+--
+-- Constraints for table `ap_invoices`
+--
+ALTER TABLE `ap_invoices`
+  ADD PRIMARY KEY (`ap_id`),
+  ADD KEY `po_id` (`po_id`),
+  ADD KEY `vendor_id` (`vendor_id`),
+  ADD KEY `dept_id` (`dept_id`),
+  ADD CONSTRAINT `ap_invoices_ibfk_1` FOREIGN KEY (`po_id`) REFERENCES `purchase_orders` (`po_id`),
+  ADD CONSTRAINT `ap_invoices_ibfk_2` FOREIGN KEY (`vendor_id`) REFERENCES `vendors` (`vendor_id`),
+  ADD CONSTRAINT `ap_invoices_ibfk_3` FOREIGN KEY (`dept_id`) REFERENCES `departments` (`dept_id`);
+
+--
+-- Constraints for table `vendor_payments`
+--
+ALTER TABLE `vendor_payments`
+  ADD PRIMARY KEY (`vendor_payment_id`),
+  ADD KEY `ap_id` (`ap_id`),
+  ADD CONSTRAINT `vendor_payments_ibfk_1` FOREIGN KEY (`ap_id`) REFERENCES `ap_invoices` (`ap_id`);
 
 --
 -- Constraints for table `ledger_details`
