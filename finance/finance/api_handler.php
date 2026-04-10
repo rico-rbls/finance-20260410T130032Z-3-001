@@ -3,6 +3,7 @@
  * api_handler.php
  * Central Controller for all Financial Transactions
  */
+include 'auth_check.php';
 include 'finance_logic.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

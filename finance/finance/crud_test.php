@@ -10,9 +10,15 @@ echo "<h2>UniFinance System: Automated CRUD & Logic Audit</h2>";
 // 1. TEST: Student Invoice CRUD (Create/Read)
 $student_test = "Test Student " . time();
 $amt = 1500.00;
-$conn->query("INSERT INTO invoices (student_name, total_amount, status) VALUES ('$student_test', $amt, 'unpaid')");
+$stmt = $conn->prepare("INSERT INTO invoices (student_name, total_amount, status) VALUES (?, ?, 'unpaid')");
+$stmt->bind_param("sd", $student_test, $amt);
+$stmt->execute();
 $inv_id = $conn->insert_id;
-$check_inv = $conn->query("SELECT * FROM invoices WHERE invoice_id = $inv_id")->fetch_assoc();
+
+$stmt = $conn->prepare("SELECT * FROM invoices WHERE invoice_id = ?");
+$stmt->bind_param("i", $inv_id);
+$stmt->execute();
+$check_inv = $stmt->get_result()->fetch_assoc();
 test("Create Student Invoice", ($check_inv['student_name'] === $student_test));
 
 // 2. TEST: Budget Reservation & Department Logic

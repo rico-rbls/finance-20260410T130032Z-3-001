@@ -118,8 +118,7 @@ CREATE TABLE `invoices` (
 --
 
 INSERT INTO `invoices` (`invoice_id`, `student_name`, `total_amount`, `date_issued`, `status`) VALUES
-(1, 'Jazer', 100.00, '2026-03-19 16:00:00', 'paid'),
-(2, 'Jazer', 12.00, '2026-03-19 16:00:00', 'paid'),
+(1, 'Jazer', 112.00, '2026-03-19 16:00:00', 'paid'),
 (3, 'John Doe', 100.00, '2026-03-19 16:00:00', 'unpaid');
 
 -- --------------------------------------------------------
@@ -141,8 +140,7 @@ CREATE TABLE `journal_entries` (
 --
 
 INSERT INTO `journal_entries` (`entry_id`, `transaction_date`, `description`, `reference_type`, `reference_id`) VALUES
-(1, '2026-03-20 06:09:31', 'Student Payment Receipt - Invoice #1', 'Student_Invoice', 1),
-(2, '2026-03-20 06:10:03', 'Student Payment Receipt - Invoice #2', 'Student_Invoice', 2);
+(1, '2026-03-20 06:09:31', 'Student Payment Receipt - Invoice #1', 'Student_Invoice', 1);
 
 -- --------------------------------------------------------
 
@@ -163,10 +161,8 @@ CREATE TABLE `ledger_details` (
 --
 
 INSERT INTO `ledger_details` (`detail_id`, `entry_id`, `account_id`, `debit`, `credit`) VALUES
-(1, 1, 1, 100.00, 0.00),
-(2, 1, 2, 0.00, 100.00),
-(3, 2, 1, 12.00, 0.00),
-(4, 2, 2, 0.00, 12.00);
+(1, 1, 1, 112.00, 0.00),
+(2, 1, 2, 0.00, 112.00);
 
 -- --------------------------------------------------------
 

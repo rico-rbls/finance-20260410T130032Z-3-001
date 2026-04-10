@@ -58,305 +58,281 @@ function formatCurrency($amount, $withCode = true) {
     <style>
         :root {
             --primary: #1e6b3e; /* Forest Green */
-            --primary-light: #2da15f;
-            --primary-dark: #14492a;
-            --accent: #d4fce4;
-            --bg-glass: rgba(255, 255, 255, 0.85);
-            --surface: #ffffff;
-            --body-bg: #f8faf9;
-            --text-main: #1a202c;
+            --primary-light: #f0fdf4;
+            --sidebar-bg: #ffffff;
+            --main-bg: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --card-radius: 20px;
+            --accent: #2ecc71;
+            --text-main: #1e293b;
             --text-muted: #64748b;
-            
-            --bs-primary: var(--primary);
-            --bs-primary-rgb: 30, 107, 62;
         }
 
         body {
-            background-color: var(--body-bg);
+            background-color: var(--main-bg);
             background-image: 
-                radial-gradient(at 0% 0%, rgba(30, 107, 62, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(45, 161, 95, 0.05) 0px, transparent 50%);
-            font-family: 'Plus Jakarta Sans', sans-serif;
+                radial-gradient(at 0% 0%, rgba(30, 107, 62, 0.03) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(30, 107, 62, 0.03) 0px, transparent 50%);
+            font-family: "Plus Jakarta Sans", sans-serif;
             color: var(--text-main);
-            min-height: 100vh;
-            padding-bottom: 78px;
-            letter-spacing: -0.01em;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
         }
 
-        h1, h2, h3, h4, h5, .navbar-brand {
-            font-family: 'Outfit', sans-serif;
-            font-weight: 700;
+        /* SaaS Sidebar - Refined spacing */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            border-right: 1px solid rgba(0,0,0,0.06);
+            z-index: 1050;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 32px 20px;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Glassmorphism Navbar */
-        .navbar {
-            background: var(--bg-glass);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(30, 107, 62, 0.1);
-            padding: 0.75rem 0;
-        }
-
-        .navbar-brand {
-            color: var(--primary) !important;
-            font-size: 1.5rem;
+        .sidebar-brand {
+            padding: 0 12px 40px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 14px;
+            text-decoration: none;
+            color: var(--primary);
+        }
+
+        .nav-section { margin-bottom: 28px; }
+        .nav-label { 
+            font-size: 0.75rem; 
+            font-weight: 800; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 1.2px; 
+            padding: 0 12px 14px;
         }
 
         .nav-link {
-            color: var(--text-muted);
-            font-weight: 500;
-            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.95rem;
+            border-radius: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 8px;
+            gap: 14px;
+            text-decoration: none !important;
+            letter-spacing: -0.01em;
         }
 
-        .nav-link:hover {
-            color: var(--primary);
+        .nav-link i { font-size: 1.25rem; color: var(--text-muted); transition: color 0.2s; }
+        .nav-link:hover { background: var(--primary-light); color: var(--primary); }
+        .nav-link:hover i { color: var(--primary); }
+        .nav-link.active { background: var(--primary); color: white; box-shadow: 0 8px 16px -4px rgba(30, 107, 62, 0.25); }
+        .nav-link.active i { color: white; }
+
+        /* Logout Link Styling */
+        .sidebar .mt-auto .nav-link:hover {
+            background: rgba(220, 53, 69, 0.08); /* Light Red Soft BG */
+            color: #dc3545 !important;
         }
 
-        /* Modern Cards */
+        /* SaaS Top Header - Glassmorphism */
+        .top-header {
+            position: fixed;
+            top: 0; right: 0; left: 280px;
+            height: 80px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            z-index: 1040;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .main-content { 
+            margin-left: 280px; 
+            padding: 125px 48px 48px 48px; 
+            min-height: 100vh;
+            background: var(--main-bg); 
+        }
+
+        /* SaaS Cards - Modern UI & Proper Weight */
         .card {
-            border: 1px solid rgba(30, 107, 62, 0.08);
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(30, 107, 62, 0.04), 0 8px 10px -6px rgba(30, 107, 62, 0.04);
-            background: var(--surface);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            background: #ffffff;
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 24px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 8px; /* Inner spacing */
         }
-
-        .card:hover {
-            box-shadow: 0 20px 25px -5px rgba(30, 107, 62, 0.08), 0 10px 10px -5px rgba(30, 107, 62, 0.04);
-        }
-
         .card-header {
             background: transparent;
-            border-bottom: 1px solid rgba(30, 107, 62, 0.08);
-            padding: 1.25rem 1.5rem;
-            font-weight: 600;
+            border-bottom: 2px solid #f8fafc;
+            padding: 24px 32px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: -0.01em;
         }
+        .card-body { padding: 32px; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05); }
 
-        /* Inputs & Search */
-        .global-search-container {
-            position: relative;
-            width: 300px;
+        /* SaaS Inputs - Standardized Spacing */
+        .form-control {
+            border-radius: 14px;
+            padding: 12px 20px;
+            border: 1.5px solid #edf2f7;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s;
         }
-
-        .global-search-input {
-            background: #f1f5f2 !important;
-            border: 1px solid transparent !important;
-            border-radius: 12px !important;
-            padding: 0.6rem 1rem 0.6rem 2.5rem !important;
-            font-size: 0.9rem;
-            transition: all 0.2s ease !important;
-        }
-
-        .global-search-input:focus {
-            background: #fff !important;
-            border-color: var(--primary) !important;
-            box-shadow: 0 0 0 4px rgba(30, 107, 62, 0.1) !important;
-        }
-
-        .search-icon-fixed {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            pointer-events: none;
-            z-index: 5;
-        }
-
-        /* Custom Modern Buttons */
-        .btn-primary {
-            background-color: var(--primary);
-            border: none;
-            border-radius: 12px;
-            padding: 0.6rem 1.5rem;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(30, 107, 62, 0.2);
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-light);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 15px rgba(30, 107, 62, 0.25);
-        }
-
-        .btn-outline-primary {
+        .form-control:focus {
             border-color: var(--primary);
-            color: var(--primary);
-            border-radius: 12px;
-            padding: 0.6rem 1.5rem;
-            font-weight: 600;
+            box-shadow: 0 0 0 4px rgba(30, 107, 62, 0.08);
         }
 
-        .btn-outline-primary:hover {
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }
-
-        /* Table Styling */
-        .table {
-            border-collapse: separate;
-            border-spacing: 0 8px;
-        }
-
-        .table thead th {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            padding: 1rem 1.5rem;
-        }
-
-        .table tbody tr {
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            border-radius: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .table tbody tr:hover {
-            background: #fdfdfd;
-            transform: scale(1.002);
-            box-shadow: 0 4px 8px rgba(30, 107, 62, 0.05);
-        }
-
-        .table td {
-            border: none;
-            padding: 1.25rem 1.5rem;
-            vertical-align: middle;
-        }
-
-        .table td:first-child { border-radius: 12px 0 0 12px; }
-        .table td:last-child { border-radius: 0 12px 12px 0; }
-
-        /* Badges */
-        .badge {
-            padding: 0.5em 0.8em;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-
-        .bg-primary-subtle { background-color: #e3f5eb !important; color: #1e6b3e !important; }
-        .bg-warning-subtle { background-color: #fef3c7 !important; color: #92400e !important; }
-        .bg-success-subtle { background-color: #dcfce7 !important; color: #166534 !important; }
-        .bg-danger-subtle { background-color: #fee2e2 !important; color: #991b1b !important; }
-
-        /* Footer */
+        /* Footer Modernization */
         .app-footer {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 1040;
-            background: var(--surface);
-            border-top: 1px solid rgba(0,0,0,0.05);
-            padding: 0.75rem 0;
-        }
-
-        .footer-wrap {
+            margin-left: 280px;
+            padding: 32px 48px;
+            background: transparent;
+            border-top: 1.5px solid #f1f5f9;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: var(--text-muted);
+            font-weight: 600;
         }
 
-        /* Toast Modernization */
-        .app-toast {
-            border: none;
+        /* Search Bar Refinement */
+        .search-container { position: relative; width: 420px; }
+        .search-bar {
+            background: #f1f5f9;
+            border: 1px solid transparent !important;
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            background: white;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-        }
-
-        .app-toast.success::before { content: ""; width: 6px; height: 100%; background: #198754; position: absolute; left: 0; }
-        .app-toast.error::before { content: ""; width: 6px; height: 100%; background: #dc3545; position: absolute; left: 0; }
-
-        .app-toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 2000; }
-
-        /* Search Recommendations Styles */
-        .global-search-container { position: relative; }
-        .search-recommendations {
-            position: absolute;
-            top: 100%;
-            left: 0;
+            padding: 12px 16px 12px 48px !important;
+            font-size: 0.9rem;
             width: 100%;
-            background: white;
-            border-radius: 12px;
-            margin-top: 8px;
-            overflow: hidden;
-            z-index: 1100;
-            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
-        .search-recommend-item {
-            padding: 12px 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #f1f5f2;
-            transition: background 0.2s;
+        .search-bar:focus { 
+            background: white; 
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 4px rgba(30, 107, 62, 0.1); 
+            outline: none;
         }
-        .search-recommend-item:last-child { border-bottom: none; }
-        .search-recommend-item:hover { background: #f8faf9; }
-        .search-recommend-item i { margin-right: 12px; color: var(--primary); }
-        .search-recommend-item .item-label { font-size: 0.9rem; font-weight: 500; }
-        .search-recommend-item .item-type { font-size: 0.7rem; color: #64748b; margin-left: auto; text-transform: uppercase; }
-        .bg-primary { background-color: var(--primary) !important; }
+        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--text-muted); z-index: 10; font-size: 1.1rem; }
+
+        /* Corner Rounding Utilities */
+        .rounded-xl { border-radius: 16px !important; }
+        .rounded-2xl { border-radius: 24px !important; }
+        
+        .btn { border-radius: 12px; padding: 10px 20px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { box-shadow: 0 4px 12px rgba(30, 107, 62, 0.15); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(30, 107, 62, 0.2); }
     </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg sticky-top mb-4">
-    <div class="container">
-        <a class="navbar-brand" href="dashboard.php">
-            <div class="d-flex align-items-center justify-content-center bg-primary text-white rounded-3 p-2 me-2" style="width: 40px; height: 40px;">
-                <i class="bi bi-bank2"></i>
-            </div>
-            <span>UniFinance</span>
-        </a>
-        
-        <?php if(isset($_SESSION['user_id'])): ?>
-        <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
-            <span class="navbar-toggler-icon"></span>
-        </button>
 
-        <div class="collapse navbar-collapse" id="navbarContent">
-            <div class="ms-md-4 me-auto">
-                <div class="global-search-container">
-                    <form id="globalSearchForm" role="search" autocomplete="off">
-                        <i class="bi bi-search search-icon-fixed"></i>
-                        <input id="globalSearchInput" type="search" class="form-control global-search-input" placeholder="Search features, students, or POs..." aria-label="Global Search">
-                    </form>
-                    <div id="searchRecommendations" class="search-recommendations shadow-lg d-none">
-                        <!-- Dynamic Recommendations -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-flex align-items-center gap-3">
-                <div class="text-end d-none d-lg-block">
-                    <div class="fw-semibold small"><?= htmlspecialchars($_SESSION['full_name'] ?? 'User') ?></div>
-                    <div class="text-muted" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                        <?= str_replace('_', ' ', $_SESSION['role']) ?>
-                    </div>
-                </div>
-                <div class="vr mx-2 d-none d-lg-block" style="height: 30px;"></div>
-                <a href="logout.php" class="btn btn-sm btn-outline-danger border-0">
-                    <i class="bi bi-box-arrow-right fs-5"></i>
-                </a>
-            </div>
+<?php if(basename($_SERVER['PHP_SELF']) != 'login.php'): ?>
+<!-- Sidebar Navigation -->
+<aside class="sidebar" id="mainSidebar">
+    <a href="dashboard.php" class="sidebar-brand">
+        <div class="bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+            <i class="bi bi-bank2 fs-5"></i>
         </div>
-        <?php endif; ?>
+        <div>
+            <span class="d-block fw-bold h5 mb-0" style="font-family: 'Outfit';">UniFinance</span>
+            <span class="badge bg-soft-success text-success p-0" style="font-size: 0.65rem;">ENTERPRISE</span>
+        </div>
+    </a>
+
+    <div class="nav-section mt-3">
+        <div class="nav-label">Main Menu</div>
+        <a href="dashboard.php" class="nav-link <?= $current_page == 'dashboard.php' ? 'active' : '' ?>">
+            <i class="bi bi-grid-1x2-fill"></i> Dashboard
+        </a>
+        <a href="budget.php" class="nav-link <?= $current_page == 'budget.php' ? 'active' : '' ?>">
+            <i class="bi bi-pie-chart-fill"></i> Budget Control
+        </a>
     </div>
-</nav>
+
+    <div class="nav-section">
+        <div class="nav-label">Operations</div>
+        <a href="procurement.php" class="nav-link <?= $current_page == 'procurement.php' ? 'active' : '' ?>">
+            <i class="bi bi-cart-check-fill"></i> Procurement
+        </a>
+        <a href="approvals.php" class="nav-link <?= $current_page == 'approvals.php' ? 'active' : '' ?>">
+            <i class="bi bi-shield-check"></i> Approvals
+        </a>
+        <a href="billing_view.php" class="nav-link <?= $current_page == 'billing_view.php' ? 'active' : '' ?>">
+            <i class="bi bi-receipt-cutoff"></i> Billing
+        </a>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-label">Intelligence</div>
+        <a href="reports.php" class="nav-link <?= $current_page == 'reports.php' ? 'active' : '' ?>">
+            <i class="bi bi-file-earmark-bar-graph"></i> Data Center
+        </a>
+    </div>
+
+    <div class="mt-auto pt-4 border-top border-light-subtle">
+        <a href="logout.php" class="nav-link text-danger fw-bold">
+            <i class="bi bi-box-arrow-right"></i> Log Out
+        </a>
+    </div>
+</aside>
+
+<!-- Top Navigation -->
+<header class="top-header">
+    <div class="search-container">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" id="globalSearch" class="search-bar" placeholder="Search anything (Press '/') " onkeyup="updateRecommendations()">
+        <div id="searchRecommendations" class="dropdown-menu shadow-lg border-0 w-100 rounded-4 mt-2" style="display: none; max-height: 480px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="d-flex align-items-center gap-4">
+        <div class="d-flex gap-2 text-muted">
+            <button class="btn btn-light rounded-circle p-2" title="Notifications">
+                <i class="bi bi-bell-fill fs-5"></i>
+            </button>
+        </div>
+        
+        <div class="vr" style="height: 32px; opacity: 0.1;"></div>
+
+        <div class="dropdown">
+            <div class="user-dropdown d-flex align-items-center gap-2" data-bs-toggle="dropdown">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-weight: 700;">
+                    <?= htmlspecialchars(strtoupper(substr($_SESSION['username'] ?? 'A', 0, 1))) ?>
+                </div>
+                <div class="d-none d-md-block text-start">
+                    <span class="d-block small fw-bold mb-0"><?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?></span>
+                    <span class="d-block text-muted" style="font-size: 0.7rem;">Administrator</span>
+                </div>
+                <i class="bi bi-chevron-down small text-muted ms-1"></i>
+            </div>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-3" style="min-width: 200px;">
+                <li><a class="dropdown-item py-2 px-3 rounded-top-4" href="#"><i class="bi bi-person me-2 text-muted"></i> My Profile</a></li>
+                <li><a class="dropdown-item py-2 px-3" href="#"><i class="bi bi-activity me-2 text-muted"></i> System Logs</a></li>
+                <li><hr class="dropdown-divider opacity-50"></li>
+                <li><a class="dropdown-item py-2 px-3 text-danger rounded-bottom-4" href="logout.php"><i class="bi bi-box-arrow-right me-2"></i> Log Out</a></li>
+            </ul>
+        </div>
+    </div>
+</header>
+<?php endif; ?>
+
+<main class="<?= basename($_SERVER['PHP_SELF']) != 'login.php' ? 'main-content' : '' ?>">
 
 <div id="appToastContainer" class="app-toast-container" aria-live="polite" aria-atomic="true"></div>
 
@@ -623,11 +599,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     applyGlobalSearchFromState();
 
-    if (!document.getElementById('appGlobalFooter')) {
+    if (!document.getElementById('appGlobalFooter') && basename($_SERVER['PHP_SELF']) != 'login.php') {
         const footer = document.createElement('footer');
         footer.id = 'appGlobalFooter';
         footer.className = 'app-footer';
-        footer.innerHTML = '<div class="container footer-wrap">Contact: ricdrobles@gmail.com (Group Programmer)</div>';
+        footer.innerHTML = `
+            <div><strong>UniFinance ERP</strong> &bull; Institutional Financial Suite</div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-soft-primary p-2">v4.2.0 Stable</span>
+                <span>&copy; ${new Date().getFullYear()} All Rights Reserved</span>
+            </div>
+        `;
         document.body.appendChild(footer);
     }
 });

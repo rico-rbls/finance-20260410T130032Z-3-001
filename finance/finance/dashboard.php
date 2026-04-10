@@ -16,7 +16,7 @@ $budget_colors = [];
 
 // Distinct Color Palette for the 5 Colleges
 $color_map = [
-    'Computing Science' => '#1e6b3e', // CCSE - Forest Green
+    'Computing Science' => '#e11d48', // CCSE - Modern Red
     'Tourism'           => '#d97706', // CTHM - Amber/Orange
     'Human Kinetics'    => '#1d4ed8', // CHK - Royal Blue
     'Teacher Education' => '#9333ea', // CTE - Purple
