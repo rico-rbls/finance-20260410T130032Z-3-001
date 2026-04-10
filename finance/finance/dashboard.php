@@ -10,22 +10,64 @@ $unpaid_inv = $conn->query("SELECT COUNT(*) as total FROM invoices WHERE status=
 $pending_pos = $conn->query("SELECT COUNT(*) as total FROM purchase_orders WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
 $low_budgets = $conn->query("SELECT COUNT(*) as total FROM departments WHERE total_budget < 5000")->fetch_assoc()['total'] ?? 0;
 
-// Analytics Data: Budget Utilization
 $budget_labels = [];
 $budget_values = [];
-$dept_query = $conn->query("SELECT department_name, total_budget, spent_reserved FROM departments LIMIT 6");
+$budget_colors = [];
+
+// Distinct Color Palette for the 5 Colleges
+$color_map = [
+    'Computing Science' => '#1e6b3e', // CCSE - Forest Green
+    'Tourism'           => '#d97706', // CTHM - Amber/Orange
+    'Human Kinetics'    => '#1d4ed8', // CHK - Royal Blue
+    'Teacher Education' => '#9333ea', // CTE - Purple
+    'Business'          => '#059669'  // CBA - Emerald
+];
+
+$dept_query = $conn->query("SELECT d.dept_name, d.total_budget, 
+                            IFNULL(SUM(r.amount_reserved), 0) as spent_reserved
+                            FROM departments d
+                            LEFT JOIN budget_reservations r ON d.dept_id = r.dept_id AND r.status != 'cancelled'
+                            GROUP BY d.dept_id LIMIT 6");
 while ($drow = $dept_query->fetch_assoc()) {
-    $budget_labels[] = $drow['department_name'];
+    $name = $drow['dept_name'];
+    $budget_labels[] = $name;
     $budget_values[] = (float)$drow['spent_reserved'];
+    
+    // Auto-match color or fallback to primary green
+    $matched = false;
+    foreach($color_map as $key => $color) {
+        if (stripos($name, $key) !== false) {
+            $budget_colors[] = $color;
+            $matched = true;
+            break;
+        }
+    }
+    if(!$matched) $budget_colors[] = '#1e6b3e'; 
 }
 
-// Analytics Data: Weekly Cash Flow
-$cash_in_week = [0,0,0,0,0,0,0]; // Placeholder for Chart.js
-$cash_out_week = [0,0,0,0,0,0,0];
-$days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// Analytics Data: Weekly Cash Flow (Last 7 Days)
+$cash_activity = [];
+$cash_labels = [];
+for ($i = 6; $i >= 0; $i--) {
+    $d = date('Y-m-d', strtotime("-$i days"));
+    $cash_labels[] = date('D', strtotime($d));
+    
+    // Get total transactions for this day via ledger
+    $day_q = $conn->prepare("SELECT COUNT(*) as count FROM journal_entries WHERE DATE(transaction_date) = ?");
+    $day_q->bind_param("s", $d);
+    $day_q->execute();
+    $cash_activity[] = (int)($day_q->get_result()->fetch_assoc()['count'] ?? 0);
+}
+
+// Stats for Activity Monitor
+$recent_approvals_count = $conn->query("SELECT COUNT(*) as total FROM budget_reservations WHERE status='committed'")->fetch_assoc()['total'] ?? 0;
+
+$weekly_revenue = $conn->query("SELECT SUM(credit - debit) as total FROM ledger_details ld 
+                                JOIN journal_entries je ON ld.entry_id = je.entry_id 
+                                WHERE ld.account_id = 6 AND je.transaction_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetch_assoc()['total'] ?? 0;
 
 // NEW: Count for Budget Approvals
-$pending_approvals = $conn->query("SELECT COUNT(*) as total FROM budget_reservations WHERE status='pending'")->fetch_assoc()['total'];
+$pending_approvals = $conn->query("SELECT COUNT(*) as total FROM budget_reservations WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
 
 $quick_actions = [];
 if ($role === 'admin' || $role === 'finance_officer') {
@@ -165,7 +207,7 @@ if ($role === 'admin' || $role === 'finance_officer') {
                         </div>
                         <div>
                             <div class="small fw-semibold opacity-75">Recent Approvals</div>
-                            <div class="fw-bold"><?= $pending_approvals ?> Needed</div>
+                            <div class="fw-bold"><?= $recent_approvals_count ?> Successfully Processed</div>
                         </div>
                     </div>
                     <div class="d-flex align-items-center">
@@ -173,8 +215,8 @@ if ($role === 'admin' || $role === 'finance_officer') {
                             <i class="bi bi-receipt"></i>
                         </div>
                         <div>
-                            <div class="small fw-semibold opacity-75">Pending Invoices</div>
-                            <div class="fw-bold"><?= $unpaid_inv ?> Records</div>
+                            <div class="small fw-semibold opacity-75">Weekly Revenue</div>
+                            <div class="fw-bold"><?= formatCurrency(abs($weekly_revenue)) ?></div>
                         </div>
                     </div>
                     <!-- Mini Sparkline in the Sidebar -->
@@ -229,7 +271,7 @@ if ($role === 'admin' || $role === 'finance_officer') {
                     datasets: [{
                         label: 'Utilized Budget (PHP)',
                         data: <?= json_encode($budget_values) ?>,
-                        backgroundColor: 'rgba(30, 107, 62, 0.8)',
+                        backgroundColor: <?= json_encode($budget_colors) ?>,
                         borderRadius: 8,
                         barThickness: 30
                     }]
@@ -249,10 +291,10 @@ if ($role === 'admin' || $role === 'finance_officer') {
             new Chart(document.getElementById('budgetPieChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: <?= json_encode(array_slice($budget_labels, 0, 4)) ?>,
+                    labels: <?= json_encode($budget_labels) ?>,
                     datasets: [{
-                        data: <?= json_encode(array_slice($budget_values, 0, 4)) ?>,
-                        backgroundColor: ['#1e6b3e', '#2da15f', '#14492a', '#3aa86a'],
+                        data: <?= json_encode($budget_values) ?>,
+                        backgroundColor: <?= json_encode($budget_colors) ?>,
                         borderWidth: 0,
                         hoverOffset: 15
                     }]
@@ -270,13 +312,14 @@ if ($role === 'admin' || $role === 'finance_officer') {
             new Chart(document.getElementById('miniSparkline'), {
                 type: 'line',
                 data: {
-                    labels: [1,2,3,4,5,6,7],
+                    labels: <?= json_encode($cash_labels) ?>,
                     datasets: [{
-                        data: [12, 19, 3, 5, 20, 3, 15],
-                        borderColor: 'rgba(255,255,255,0.6)',
+                        data: <?= json_encode($cash_activity) ?>,
+                        borderColor: 'rgba(255,255,255,0.8)',
                         borderWidth: 2,
-                        fill: false,
-                        pointRadius: 0,
+                        fill: true,
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        pointRadius: 2,
                         tension: 0.4
                     }]
                 },
