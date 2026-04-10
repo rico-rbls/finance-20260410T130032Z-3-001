@@ -51,8 +51,9 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Total Amount ($)</label>
-                        <input type="number" name="amount" class="form-control" step="0.01" placeholder="0.00" required>
+                        <label class="form-label small fw-bold">Total Amount (PHP)</label>
+                        <input type="number" name="amount" id="po_amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                        <div class="invalid-feedback">Enter an amount greater than 0.00.</div>
                     </div>
                     <div class="col-12 text-end">
                         <button type="submit" class="btn btn-success px-4 fw-bold">Submit for Approval</button>
@@ -63,13 +64,30 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
     </div>
 
     <div class="card shadow-sm border-0">
-        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="mb-0">Active Purchase Orders</span>
-            <span class="badge bg-dark"><?= $pos->num_rows ?> Orders</span>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" id="poSearch" class="form-control form-control-sm" placeholder="Search PO, dept, vendor" style="min-width: 220px;">
+                <select id="poStatusFilter" class="form-select form-select-sm" style="min-width: 150px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                </select>
+                <select id="poSort" class="form-select form-select-sm" style="min-width: 190px;">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="amount_desc">Amount: High to Low</option>
+                    <option value="amount_asc">Amount: Low to High</option>
+                    <option value="dept_asc">Department: A to Z</option>
+                </select>
+                <button type="button" id="poExportBtn" class="btn btn-sm btn-outline-dark fw-bold">Export CSV</button>
+                <button type="button" id="poExportExcelBtn" class="btn btn-sm btn-light fw-bold">Export Excel</button>
+                <span class="badge bg-dark" id="poVisibleCount"><?= $pos->num_rows ?> Orders</span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0" id="poTable">
                     <thead class="table-light">
                         <tr>
                             <th class="ps-3">PO #</th>
@@ -82,11 +100,11 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                     </thead>
                     <tbody>
                         <?php if($pos->num_rows > 0): while($row = $pos->fetch_assoc()): ?>
-                        <tr>
+                        <tr class="po-row" data-status="<?= strtolower($row['status']) ?>" data-id="<?= $row['po_id'] ?>" data-amount="<?= (float) $row['total_amount'] ?>" data-dept="<?= htmlspecialchars(strtolower($row['dept_name'])) ?>">
                             <td class="ps-3 fw-bold text-primary">PO-<?= $row['po_id'] ?></td>
                             <td><?= $row['dept_name'] ?></td>
                             <td><?= $row['vendor_name'] ?></td>
-                            <td class="text-end fw-bold">$<?= number_format($row['total_amount'], 2) ?></td>
+                            <td class="text-end fw-bold"><?= formatCurrency($row['total_amount']) ?></td>
                             <td class="text-center">
                                 <span class="badge <?= $row['status'] == 'approved' ? 'bg-info' : ($row['status'] == 'received' ? 'bg-success' : 'bg-secondary') ?>">
                                     <?= strtoupper($row['status']) ?>
@@ -96,6 +114,9 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                                 <?php if($row['status'] == 'pending'): ?>
                                     <button class="btn btn-sm btn-warning fw-bold approve-po-btn me-1" data-id="<?= $row['po_id'] ?>">
                                         Approve
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger fw-bold cancel-po-btn" data-id="<?= $row['po_id'] ?>">
+                                        Cancel
                                     </button>
                                 <?php elseif($row['status'] == 'approved'): ?>
                                     <button class="btn btn-sm btn-success fw-bold receive-btn" data-id="<?= $row['po_id'] ?>">
@@ -107,7 +128,12 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                             </td>
                         </tr>
                         <?php endwhile; else: ?>
-                        <tr><td colspan="6" class="text-center py-4 text-muted">No active purchase orders found.</td></tr>
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                No active purchase orders found.
+                                <button class="btn btn-link btn-sm fw-bold text-decoration-none" data-bs-toggle="collapse" data-bs-target="#newPOForm">Create your first PO</button>
+                            </td>
+                        </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -120,11 +146,72 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(document).ready(function() {
+    function applyPoFilters() {
+        const query = ($('#poSearch').val() || '').toLowerCase().trim();
+        const status = ($('#poStatusFilter').val() || '').toLowerCase();
+        const sort = ($('#poSort').val() || 'newest').toLowerCase();
+        let visible = 0;
+        const rows = $('.po-row').get();
+
+        rows.sort(function(a, b) {
+            const aId = parseInt($(a).data('id'), 10) || 0;
+            const bId = parseInt($(b).data('id'), 10) || 0;
+            const aAmt = parseFloat($(a).data('amount')) || 0;
+            const bAmt = parseFloat($(b).data('amount')) || 0;
+            const aDept = (($(a).data('dept') || '') + '').toLowerCase();
+            const bDept = (($(b).data('dept') || '') + '').toLowerCase();
+
+            if (sort === 'oldest') return aId - bId;
+            if (sort === 'amount_desc') return bAmt - aAmt || bId - aId;
+            if (sort === 'amount_asc') return aAmt - bAmt || aId - bId;
+            if (sort === 'dept_asc') return aDept.localeCompare(bDept) || bId - aId;
+            return bId - aId;
+        });
+
+        rows.forEach(function(row) {
+            $('#poTable tbody').append(row);
+        });
+
+        $('.po-row').each(function() {
+            const rowText = $(this).text().toLowerCase();
+            const rowStatus = ($(this).data('status') || '').toString().toLowerCase();
+            const matchText = !query || rowText.indexOf(query) !== -1;
+            const matchStatus = !status || rowStatus === status;
+            const show = matchText && matchStatus;
+            $(this).toggle(show);
+            if (show) visible++;
+        });
+
+        $('#poVisibleCount').text(visible + ' Orders');
+    }
+
+    function validatePoAmount() {
+        const input = $('#po_amount');
+        const value = parseFloat(input.val());
+        if (isNaN(value) || value <= 0) {
+            input.addClass('is-invalid');
+            return false;
+        }
+        input.removeClass('is-invalid');
+        return true;
+    }
+
+    $('#poSearch, #poStatusFilter, #poSort').on('input change', applyPoFilters);
+
+    $('#poExportBtn').on('click', function() {
+        exportVisibleTableToCsv('poTable', 'purchase_orders.csv');
+    });
+
+    $('#poExportExcelBtn').on('click', function() {
+        exportVisibleTableToXlsx('poTable', 'purchase_orders.xlsx');
+    });
+
     // Submit New PO
     $('#createPOForm').on('submit', function(e) {
         e.preventDefault();
+        if (!validatePoAmount()) return;
         $.post('api_handler.php', $(this).serialize(), function(response) {
-            alert(response);
+            showAppToast(response, 'success');
             location.reload();
         });
     });
@@ -133,7 +220,17 @@ $(document).ready(function() {
         let poId = $(this).data('id');
         if(confirm('Approve this purchase order?')) {
             $.post('api_handler.php', {action: 'approve_po', po_id: poId}, function(response) {
-                alert(response);
+                showAppToast(response, 'info');
+                location.reload();
+            });
+        }
+    });
+
+    $(document).on('click', '.cancel-po-btn', function() {
+        let poId = $(this).data('id');
+        if(confirm('Cancel this pending purchase order? The linked budget reservation will also be cancelled.')) {
+            $.post('api_handler.php', {action: 'cancel_po', po_id: poId}, function(response) {
+                showAppToast(response, response.toLowerCase().indexOf('cancelled') !== -1 ? 'success' : 'error');
                 location.reload();
             });
         }
@@ -144,11 +241,13 @@ $(document).ready(function() {
         let poId = $(this).data('id');
         if(confirm("Confirm receipt of goods? This will update the General Ledger and hit the department budget.")) {
             $.post('api_handler.php', {action: 'receive_po', po_id: poId}, function(response) {
-                alert(response);
+                showAppToast(response, 'success');
                 location.reload();
             });
         }
     });
+
+    applyPoFilters();
 });
 </script>
 </body>

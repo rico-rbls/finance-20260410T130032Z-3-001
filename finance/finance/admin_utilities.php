@@ -39,16 +39,16 @@ $accounts = $conn->query("SELECT * FROM chart_of_accounts ORDER BY account_type 
                             <select name="dept_id" class="form-select form-select-lg">
                                 <?php while($d = $depts->fetch_assoc()): ?>
                                     <option value="<?= $d['dept_id'] ?>">
-                                        <?= $d['dept_name'] ?> (Current: $<?= number_format($d['total_budget'], 2) ?>)
+                                        <?= $d['dept_name'] ?> (Current: <?= formatCurrency($d['total_budget']) ?>)
                                     </option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label small fw-bold text-uppercase">New Total Budget ($)</label>
+                            <label class="form-label small fw-bold text-uppercase">New Total Budget (PHP)</label>
                             <div class="input-group input-group-lg">
-                                <span class="input-group-text bg-white">$</span>
-                                <input type="number" name="new_amount" class="form-control" step="0.01" placeholder="0.00" required>
+                                <span class="input-group-text bg-white">PHP</span>
+                                <input type="number" name="new_amount" class="form-control" step="0.01" min="0" placeholder="0.00" required>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-danger w-100 fw-bold py-2">
@@ -74,15 +74,15 @@ $accounts = $conn->query("SELECT * FROM chart_of_accounts ORDER BY account_type 
                             <select name="account_id" class="form-select form-select-lg">
                                 <?php while($a = $accounts->fetch_assoc()): ?>
                                     <option value="<?= $a['account_id'] ?>">
-                                        [<?= $a['account_type'] ?>] <?= $a['account_name'] ?> ($<?= number_format($a['balance'], 2) ?>)
+                                        [<?= $a['account_type'] ?>] <?= $a['account_name'] ?> (<?= formatCurrency($a['balance']) ?>)
                                     </option>
                                 <?php endwhile; ?>
                             </select>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label small fw-bold text-uppercase">Force New Balance ($)</label>
+                            <label class="form-label small fw-bold text-uppercase">Force New Balance (PHP)</label>
                             <div class="input-group input-group-lg">
-                                <span class="input-group-text bg-white">$</span>
+                                <span class="input-group-text bg-white">PHP</span>
                                 <input type="number" name="balance" class="form-control" step="0.01" placeholder="0.00" required>
                             </div>
                         </div>
@@ -108,20 +108,71 @@ $accounts = $conn->query("SELECT * FROM chart_of_accounts ORDER BY account_type 
     </div>
 </div>
 
+<div class="modal fade" id="adminConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">Confirm Manual Override</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Review this change before applying it to live financial data:</p>
+                <ul class="small mb-0" id="adminOverrideSummary"></ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger fw-bold" id="confirmAdminOverrideBtn">Confirm Override</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Shared AJAX handler for both forms
-    $('#adminBudgetForm, #adminLedgerForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        if(!confirm("Are you sure you want to perform this manual override? This action affects institutional financial data directly.")) {
-            return;
+    let pendingForm = null;
+    const confirmModal = new bootstrap.Modal('#adminConfirmModal');
+
+    function escapeHtml(value) {
+        return $('<div>').text(value).html();
+    }
+
+    function renderSummary(form) {
+        const isBudget = form.attr('id') === 'adminBudgetForm';
+        const lines = [];
+
+        if (isBudget) {
+            const deptText = form.find('select[name="dept_id"] option:selected').text().trim();
+            const amount = form.find('input[name="new_amount"]').val();
+            lines.push('<li><strong>Action:</strong> Update department total budget</li>');
+            lines.push('<li><strong>Department:</strong> ' + escapeHtml(deptText) + '</li>');
+            lines.push('<li><strong>New Budget:</strong> PHP ' + escapeHtml(amount) + '</li>');
+        } else {
+            const accountText = form.find('select[name="account_id"] option:selected').text().trim();
+            const balance = form.find('input[name="balance"]').val();
+            lines.push('<li><strong>Action:</strong> Force ledger account balance</li>');
+            lines.push('<li><strong>Account:</strong> ' + escapeHtml(accountText) + '</li>');
+            lines.push('<li><strong>New Balance:</strong> PHP ' + escapeHtml(balance) + '</li>');
         }
 
-        $.post('api_handler.php', $(this).serialize(), function(response) {
-            alert(response);
+        $('#adminOverrideSummary').html(lines.join(''));
+    }
+
+    // Shared handler for both forms
+    $('#adminBudgetForm, #adminLedgerForm').on('submit', function(e) {
+        e.preventDefault();
+
+        pendingForm = $(this);
+        renderSummary(pendingForm);
+        confirmModal.show();
+    });
+
+    $('#confirmAdminOverrideBtn').on('click', function() {
+        if (!pendingForm) return;
+
+        $.post('api_handler.php', pendingForm.serialize(), function(response) {
+            showAppToast(response, 'success');
             location.reload();
         });
     });

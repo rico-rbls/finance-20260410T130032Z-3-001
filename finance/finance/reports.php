@@ -7,7 +7,7 @@ restrictTo(['admin', 'finance_officer']);
 include 'report_logic.php';
 
 // Helper function for currency formatting
-function f($n) { return '$' . number_format($n, 2); }
+function f($n) { return formatCurrency($n); }
 
 // Fetch Data from Logic Layer
 $budget_data = getBudgetData();
