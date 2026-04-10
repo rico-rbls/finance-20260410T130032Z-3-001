@@ -1,5 +1,7 @@
 <?php
 session_start();
+include_once 'error_handler.php'; // Initialize Centralized Error Handling
+
 if (!isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) != 'login.php') {
     header("Location: login.php"); exit();
 }
@@ -24,6 +26,35 @@ function formatCurrency($amount, $withCode = true) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Global Utility for Toasts (using Bootstrap Alerts)
+        window.showAppToast = function(msg, type='info') {
+            let container = document.getElementById('toast-container');
+            if(!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.cssText = 'position:fixed; top:85px; right:20px; z-index:9999;';
+                document.body.appendChild(container);
+            }
+            const wrapper = document.createElement('div');
+            const alertClass = type === 'error' ? 'danger' : (type === 'success' ? 'success' : 'primary');
+            wrapper.innerHTML = `
+                <div class="alert alert-${alertClass} alert-dismissible fade show shadow-lg border-0 rounded-4 mb-2" role="alert" style="min-width: 250px; backdrop-filter: blur(8px); background-color: rgba(var(--bs-${alertClass}-rgb), 0.9); color: white;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-${type === 'success' ? 'check-circle' : (type === 'error' ? 'exclamation-triangle' : 'info-circle')} me-2 fs-5"></i>
+                        <div class="small fw-semibold">${msg}</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+            const alertNode = wrapper.firstElementChild;
+            container.appendChild(alertNode);
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alertNode);
+                bsAlert.close();
+            }, 6000);
+        };
+    </script>
     <style>
         :root {
             --primary: #1e6b3e; /* Forest Green */
@@ -251,6 +282,35 @@ function formatCurrency($amount, $withCode = true) {
         .app-toast.error::before { content: ""; width: 6px; height: 100%; background: #dc3545; position: absolute; left: 0; }
 
         .app-toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 2000; }
+
+        /* Search Recommendations Styles */
+        .global-search-container { position: relative; }
+        .search-recommendations {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            margin-top: 8px;
+            overflow: hidden;
+            z-index: 1100;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .search-recommend-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f2;
+            transition: background 0.2s;
+        }
+        .search-recommend-item:last-child { border-bottom: none; }
+        .search-recommend-item:hover { background: #f8faf9; }
+        .search-recommend-item i { margin-right: 12px; color: var(--primary); }
+        .search-recommend-item .item-label { font-size: 0.9rem; font-weight: 500; }
+        .search-recommend-item .item-type { font-size: 0.7rem; color: #64748b; margin-left: auto; text-transform: uppercase; }
+        .bg-primary { background-color: var(--primary) !important; }
     </style>
 </head>
 <body>
@@ -270,10 +330,15 @@ function formatCurrency($amount, $withCode = true) {
 
         <div class="collapse navbar-collapse" id="navbarContent">
             <div class="ms-md-4 me-auto">
-                <form id="globalSearchForm" class="global-search-container" role="search">
-                    <i class="bi bi-search search-icon-fixed"></i>
-                    <input id="globalSearchInput" type="search" class="form-control global-search-input" placeholder="Search records..." aria-label="Global Search">
-                </form>
+                <div class="global-search-container">
+                    <form id="globalSearchForm" role="search" autocomplete="off">
+                        <i class="bi bi-search search-icon-fixed"></i>
+                        <input id="globalSearchInput" type="search" class="form-control global-search-input" placeholder="Search features, students, or POs..." aria-label="Global Search">
+                    </form>
+                    <div id="searchRecommendations" class="search-recommendations shadow-lg d-none">
+                        <!-- Dynamic Recommendations -->
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex align-items-center gap-3">
@@ -361,6 +426,38 @@ function routeGlobalSearch(query) {
     if (!q) return;
 
     sessionStorage.setItem('globalSearchQuery', q);
+    
+    // Check if query is a feature keyword
+    const features = {
+        'budget': 'budget.php',
+        'reservation': 'budget.php',
+        'allocate': 'budget.php',
+        'student': 'billing_view.php',
+        'billing': 'billing_view.php',
+        'invoice': 'billing_view.php',
+        'tuition': 'billing_view.php',
+        'procurement': 'procurement.php',
+        'purchase': 'procurement.php',
+        'order': 'procurement.php',
+        'po': 'procurement.php',
+        'approval': 'approvals.php',
+        'authorize': 'approvals.php',
+        'report': 'reports.php',
+        'intelligence': 'reports.php',
+        'audit': 'reports.php',
+        'utility': 'admin_utilities.php',
+        'ledger': 'admin_utilities.php'
+    };
+
+    const searchLower = q.toLowerCase();
+    for (const key in features) {
+        if (searchLower.includes(key)) {
+            window.location.href = features[key] + '?search=' + encodeURIComponent(q);
+            return;
+        }
+    }
+
+    // Default to search on current page or redirect to billing if looks like student name
     const current = window.location.pathname.toLowerCase();
     const localFields = ['billingSearch', 'poSearch', 'approvalSearch', 'budgetSearch'];
     for (let i = 0; i < localFields.length; i++) {
@@ -373,22 +470,81 @@ function routeGlobalSearch(query) {
         }
     }
 
-    if (q.toLowerCase().includes('po')) {
-        window.location.href = 'procurement.php?search=' + encodeURIComponent(q);
-        return;
-    }
-    if (q.toLowerCase().includes('inv') || q.toLowerCase().includes('student')) {
-        window.location.href = 'billing_view.php?search=' + encodeURIComponent(q);
-        return;
-    }
-    if (q.toLowerCase().includes('reservation') || q.toLowerCase().includes('budget')) {
-        window.location.href = 'budget.php?search=' + encodeURIComponent(q);
+    window.location.href = 'billing_view.php?search=' + encodeURIComponent(q);
+}
+
+function updateRecommendations(query) {
+    const q = (query || '').trim().toLowerCase();
+    const container = document.getElementById('searchRecommendations');
+    if (!container) return;
+
+    if (!q || q.length < 2) {
+        container.classList.add('d-none');
         return;
     }
 
-    if (current.indexOf('dashboard.php') === -1) {
-        window.location.href = 'dashboard.php?search=' + encodeURIComponent(q);
-    }
+    const availableFeatures = [
+        { label: 'Budget & Reservations', type: 'Feature', link: 'budget.php', icon: 'bi-piggy-bank' },
+        { label: 'Student Billing / Invoices', type: 'Feature', link: 'billing_view.php', icon: 'bi-receipt' },
+        { label: 'Procurement / Purchase Orders', type: 'Feature', link: 'procurement.php', icon: 'bi-truck' },
+        { label: 'Awaiting Approvals', type: 'Feature', link: 'approvals.php', icon: 'bi-shield-check' },
+        { label: 'Financial Intelligence Reports', type: 'Feature', link: 'reports.php', icon: 'bi-bar-chart-line' },
+        { label: 'System Utilities & Ledger', type: 'Feature', link: 'admin_utilities.php', icon: 'bi-shield-lock' }
+    ];
+
+    let html = '';
+    const filteredFeatures = availableFeatures.filter(f => f.label.toLowerCase().includes(q));
+    
+    filteredFeatures.forEach(f => {
+        html += `<div class="search-recommend-item" onclick="window.location.href='${f.link}'">
+                    <i class="bi ${f.icon}"></i>
+                    <span class="item-label">${f.label}</span>
+                    <span class="item-type">${f.type}</span>
+                 </div>`;
+    });
+
+    // Smart Keyword Suggestions
+    const shortcuts = [
+        { trigger: 'inv', label: 'Search Student Invoices', link: 'billing_view.php' },
+        { trigger: 'stu', label: 'Find a Student Record', link: 'billing_view.php' },
+        { trigger: 'po', label: 'View Pending Orders', link: 'procurement.php' },
+        { trigger: 'res', label: 'Manage Reservations', link: 'budget.php' }
+    ];
+
+    shortcuts.filter(s => s.trigger.indexOf(q) === 0).forEach(s => {
+        html += `<div class="search-recommend-item" onclick="window.location.href='${s.link}?search=${encodeURIComponent(q)}'">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span class="item-label">${s.label}: <strong>${q}</strong></span>
+                    <span class="item-type">Action</span>
+                 </div>`;
+    });
+
+    // Fetch dynamic database entities (Students, Specific Records)
+    fetch('search_entities.php?q=' + encodeURIComponent(q))
+        .then(response => response.json())
+        .then(entities => {
+            entities.forEach(e => {
+                html += `<div class="search-recommend-item" onclick="window.location.href='${e.link}'">
+                            <i class="bi ${e.icon}"></i>
+                            <span class="item-label">${e.label}</span>
+                            <span class="item-type">${e.type}</span>
+                         </div>`;
+            });
+
+            if (html) {
+                container.innerHTML = html;
+                container.classList.remove('d-none');
+            } else {
+                container.classList.add('d-none');
+            }
+        })
+        .catch(() => {
+            // Fallback to static if endpoint fails
+            if (html) {
+                container.innerHTML = html;
+                container.classList.remove('d-none');
+            }
+        });
 }
 
 function applyGlobalSearchFromState() {
@@ -438,10 +594,30 @@ function showAppToast(message, type) {
 document.addEventListener('DOMContentLoaded', function() {
     const searchForm = document.getElementById('globalSearchForm');
     const searchInput = document.getElementById('globalSearchInput');
+    const recommendations = document.getElementById('searchRecommendations');
+
     if (searchForm && searchInput) {
         searchForm.addEventListener('submit', function(e) {
             e.preventDefault();
             routeGlobalSearch(searchInput.value);
+        });
+
+        searchInput.addEventListener('input', function(e) {
+            updateRecommendations(e.target.value);
+        });
+
+        // Close recommendations when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !recommendations.contains(e.target)) {
+                recommendations.classList.add('d-none');
+            }
+        });
+
+        // Re-open if query is present on focus
+        searchInput.addEventListener('focus', function(e) {
+            if (e.target.value.length >= 2) {
+                updateRecommendations(e.target.value);
+            }
         });
     }
 

@@ -2,13 +2,27 @@
 include 'header.php'; 
 include 'db_connect.php';
 
-$role = $_SESSION['role'];
+$role = $_SESSION['role'] ?? 'guest';
 $user_full_name = $_SESSION['full_name'] ?? 'Authorized User';
 
 // Quick Stats for the Header Cards
-$unpaid_inv = $conn->query("SELECT COUNT(*) as total FROM invoices WHERE status='unpaid'")->fetch_assoc()['total'];
-$pending_pos = $conn->query("SELECT COUNT(*) as total FROM purchase_orders WHERE status='pending'")->fetch_assoc()['total'];
-$low_budgets = $conn->query("SELECT COUNT(*) as total FROM departments WHERE total_budget < 5000")->fetch_assoc()['total'];
+$unpaid_inv = $conn->query("SELECT COUNT(*) as total FROM invoices WHERE status='unpaid'")->fetch_assoc()['total'] ?? 0;
+$pending_pos = $conn->query("SELECT COUNT(*) as total FROM purchase_orders WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
+$low_budgets = $conn->query("SELECT COUNT(*) as total FROM departments WHERE total_budget < 5000")->fetch_assoc()['total'] ?? 0;
+
+// Analytics Data: Budget Utilization
+$budget_labels = [];
+$budget_values = [];
+$dept_query = $conn->query("SELECT department_name, total_budget, spent_reserved FROM departments LIMIT 6");
+while ($drow = $dept_query->fetch_assoc()) {
+    $budget_labels[] = $drow['department_name'];
+    $budget_values[] = (float)$drow['spent_reserved'];
+}
+
+// Analytics Data: Weekly Cash Flow
+$cash_in_week = [0,0,0,0,0,0,0]; // Placeholder for Chart.js
+$cash_out_week = [0,0,0,0,0,0,0];
+$days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // NEW: Count for Budget Approvals
 $pending_approvals = $conn->query("SELECT COUNT(*) as total FROM budget_reservations WHERE status='pending'")->fetch_assoc()['total'];
@@ -146,22 +160,26 @@ if ($role === 'admin' || $role === 'finance_officer') {
                 <h5 class="fw-bold mb-4 mt-2">Activity Monitor</h5>
                 <div class="d-flex flex-column gap-4">
                     <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-pill p-2 px-3 me-3">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-2 px-3 me-3">
                             <i class="bi bi-shield-check"></i>
                         </div>
                         <div>
                             <div class="small fw-semibold opacity-75">Recent Approvals</div>
-                            <div class="fw-bold">14 Today</div>
+                            <div class="fw-bold"><?= $pending_approvals ?> Needed</div>
                         </div>
                     </div>
                     <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-pill p-2 px-3 me-3">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-2 px-3 me-3">
                             <i class="bi bi-receipt"></i>
                         </div>
                         <div>
-                            <div class="small fw-semibold opacity-75">Invoices Generated</div>
-                            <div class="fw-bold">PHP 1.2M This Week</div>
+                            <div class="small fw-semibold opacity-75">Pending Invoices</div>
+                            <div class="fw-bold"><?= $unpaid_inv ?> Records</div>
                         </div>
+                    </div>
+                    <!-- Mini Sparkline in the Sidebar -->
+                    <div class="mt-2" style="height: 60px;">
+                         <canvas id="miniSparkline"></canvas>
                     </div>
                     <div class="mt-4 pt-4 border-top border-white border-opacity-10 text-center">
                         <p class="small opacity-75 mb-3">All financial reports are up to date and indexed.</p>
@@ -173,6 +191,105 @@ if ($role === 'admin' || $role === 'finance_officer') {
             </div>
         </div>
     </div>
+
+    <!-- Analytics Dashboard Row -->
+    <?php if(in_array($role, ['admin', 'finance_officer'])): ?>
+    <div class="row g-4 mb-5">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-bar-chart-fill text-primary me-2"></i> Financial Performance Overview</h6>
+                    <span class="badge bg-light text-muted fw-normal small">Live System Data</span>
+                </div>
+                <div class="card-body" style="min-height: 350px;">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart-fill text-success me-2"></i> Budget Utilization</h6>
+                </div>
+                <div class="card-body d-flex align-items-center">
+                    <canvas id="budgetPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Init Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Main Performance Chart (Bar)
+            new Chart(document.getElementById('performanceChart'), {
+                type: 'bar',
+                data: {
+                    labels: <?= json_encode($budget_labels) ?>,
+                    datasets: [{
+                        label: 'Utilized Budget (PHP)',
+                        data: <?= json_encode($budget_values) ?>,
+                        backgroundColor: 'rgba(30, 107, 62, 0.8)',
+                        borderRadius: 8,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [5, 5] }, ticks: { callback: v => '₱' + v.toLocaleString() } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Budget Utilization (Doughnut)
+            new Chart(document.getElementById('budgetPieChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: <?= json_encode(array_slice($budget_labels, 0, 4)) ?>,
+                    datasets: [{
+                        data: <?= json_encode(array_slice($budget_values, 0, 4)) ?>,
+                        backgroundColor: ['#1e6b3e', '#2da15f', '#14492a', '#3aa86a'],
+                        borderWidth: 0,
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, padding: 20 } } 
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Mini Sparkline in the Green Card
+            new Chart(document.getElementById('miniSparkline'), {
+                type: 'line',
+                data: {
+                    labels: [1,2,3,4,5,6,7],
+                    datasets: [{
+                        data: [12, 19, 3, 5, 20, 3, 15],
+                        borderColor: 'rgba(255,255,255,0.6)',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        });
+    </script>
+    <?php endif; ?>
 
     <h5 class="fw-bold mb-4 text-uppercase" style="letter-spacing: 1px; font-size: 0.85rem; color: #6c757d;">Financial Modules</h5>
     <div class="row g-4 mb-5">

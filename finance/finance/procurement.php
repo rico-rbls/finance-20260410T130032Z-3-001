@@ -33,9 +33,9 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white">New Purchase Order Details</div>
             <div class="card-body">
-                <form id="createPOForm" class="row g-3">
+                <form id="createPOForm" class="row g-3" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="create_po">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small fw-bold">Department</label>
                         <select name="dept_id" class="form-select" required>
                             <?php 
@@ -44,16 +44,20 @@ $pos = $conn->query("SELECT po.*, v.vendor_name, d.dept_name
                             ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label small fw-bold">Vendor / Supplier</label>
                         <select name="vendor_id" class="form-select" required>
                             <?php while($v = $vendors->fetch_assoc()) echo "<option value='{$v['vendor_id']}'>{$v['vendor_name']}</option>"; ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-2">
                         <label class="form-label small fw-bold">Total Amount (PHP)</label>
                         <input type="number" name="amount" id="po_amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
-                        <div class="invalid-feedback">Enter an amount greater than 0.00.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Attachment (Optional)</label>
+                        <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="form-text small">PDF/Images max 2MB.</div>
                     </div>
                     <div class="col-12 text-end">
                         <button type="submit" class="btn btn-success px-4 fw-bold">Submit for Approval</button>
@@ -210,9 +214,25 @@ $(document).ready(function() {
     $('#createPOForm').on('submit', function(e) {
         e.preventDefault();
         if (!validatePoAmount()) return;
-        $.post('api_handler.php', $(this).serialize(), function(response) {
-            showAppToast(response, 'success');
-            location.reload();
+        
+        let formData = new FormData(this);
+        $.ajax({
+            url: 'api_handler.php',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.toLowerCase().indexOf('created') !== -1 || response.toLowerCase().indexOf('success') !== -1) {
+                    showAppToast(response, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAppToast(response, 'error');
+                }
+            },
+            error: function() {
+                showAppToast('Network error while creating PO.', 'error');
+            }
         });
     });
 

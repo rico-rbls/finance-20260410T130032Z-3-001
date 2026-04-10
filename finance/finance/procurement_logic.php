@@ -15,17 +15,23 @@ function processPurchaseOrder($po_id) {
     if ($po['status'] == 'approved') {
         $amount = (float) $po['total_amount'];
 
-        $desc = "PO #$po_id Received - Vendor ID: " . $po['vendor_id'];
-        $ledger_success = recordJournalEntry($desc, 'Purchase_Order', $po_id, 10, 3, $amount);
+        $desc = "PO #$po_id Received - Vendor: " . $po['vendor_id'];
+        // Accounting: Debit Expense/Assets (10), Credit AP (8)
+        $ledger_success = recordJournalEntry($desc, 'Purchase_Order', $po_id, ACC_SUPPLIES_EXP, ACC_AP, $amount);
 
         if ($ledger_success) {
-            adjustAccountBalance(10, $amount);
-            adjustAccountBalance(3, $amount);
+            adjustAccountBalance(ACC_SUPPLIES_EXP, $amount); // Expense Increases (+)
+            adjustAccountBalance(ACC_AP, -$amount);          // Liability Increases (-) in credit-negative system
 
             $ap_id = createApInvoice($po_id, $po['vendor_id'], $po['dept_id'], $amount);
 
-            $conn->query("UPDATE purchase_orders SET status = 'received' WHERE po_id = $po_id");
-            $conn->query("UPDATE budget_reservations SET status = 'committed' WHERE po_id = $po_id");
+            $updatePO = $conn->prepare("UPDATE purchase_orders SET status = 'received' WHERE po_id = ?");
+            $updatePO->bind_param("i", $po_id);
+            $updatePO->execute();
+
+            $updateRes = $conn->prepare("UPDATE budget_reservations SET status = 'committed' WHERE po_id = ?");
+            $updateRes->bind_param("i", $po_id);
+            $updateRes->execute();
 
             return $ap_id ? "PO Received: AP invoice generated and ledger updated." : "PO Received: Ledger updated, but AP invoice could not be created.";
         }

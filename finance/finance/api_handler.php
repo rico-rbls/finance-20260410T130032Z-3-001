@@ -101,9 +101,10 @@ if ($action === 'create_invoice') {
 
     if ($stmt->execute()) {
         $invoice_id = $conn->insert_id;
-        recordJournalEntry("Student Invoice #$invoice_id - $student_name", 'Student_Invoice', $invoice_id, 5, 6, $amt);
-        adjustAccountBalance(5, $amt);
-        adjustAccountBalance(6, $amt);
+        // Accounting: Debit AR (5), Credit Revenue (6)
+        recordJournalEntry("Student Invoice #$invoice_id - $student_name", 'Student_Invoice', $invoice_id, ACC_AR, ACC_REVENUE, $amt);
+        adjustAccountBalance(ACC_AR, $amt);     // Asset increases with Debit (+)
+        adjustAccountBalance(ACC_REVENUE, -$amt); // Revenue increases with Credit (-) in a signed balance system
         echo 'Invoice created successfully.';
     } else {
         echo 'Error creating invoice.';
@@ -145,13 +146,13 @@ if ($action === 'payment') {
         exit;
     }
 
-    if (!recordJournalEntry("Student Payment Receipt - Invoice #$inv_id", 'Student_Invoice', $inv_id, 4, 5, $pay_amt)) {
+    if (!recordJournalEntry("Student Payment Receipt - Invoice #$inv_id", 'Student_Invoice', $inv_id, ACC_CASH, ACC_AR, $pay_amt)) {
         echo 'Error: Could not update financial ledger.';
         exit;
     }
 
-    adjustAccountBalance(4, $pay_amt);
-    adjustAccountBalance(5, -$pay_amt);
+    adjustAccountBalance(ACC_CASH, $pay_amt); // Increase Cash (+)
+    adjustAccountBalance(ACC_AR, -$pay_amt);  // Decrease AR (-)
 
     $paidStmt = $conn->prepare("SELECT IFNULL(SUM(amount_paid), 0) AS total_paid FROM payments WHERE invoice_id = ?");
     $paidStmt->bind_param("i", $inv_id);
@@ -172,8 +173,26 @@ if ($action === 'create_po') {
     $vendor_id = requirePositiveId($_POST['vendor_id'] ?? 0, 'vendor');
     $amount = requirePositiveAmount($_POST['amount'] ?? 0, 'purchase order amount');
 
-    $stmt = $conn->prepare("INSERT INTO purchase_orders (dept_id, vendor_id, total_amount, status) VALUES (?, ?, ?, 'pending')");
-    $stmt->bind_param("iid", $dept_id, $vendor_id, $amount);
+    // Handle File Upload (Optional Feature)
+    $attachment_path = null;
+    if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = __DIR__ . '/uploads/po/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+        
+        $file_info = pathinfo($_FILES['attachment']['name']);
+        $ext = strtolower($file_info['extension']);
+        $allowed = ['pdf', 'jpg', 'jpeg', 'png'];
+        
+        if (in_array($ext, $allowed) && $_FILES['attachment']['size'] <= 2 * 1024 * 1024) {
+            $new_name = "PO_" . time() . "_" . bin2hex(random_bytes(4)) . "." . $ext;
+            if (move_uploaded_file($_FILES['attachment']['tmp_name'], $upload_dir . $new_name)) {
+                $attachment_path = 'uploads/po/' . $new_name;
+            }
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO purchase_orders (dept_id, vendor_id, total_amount, status, attachment_path) VALUES (?, ?, ?, 'pending', ?)");
+    $stmt->bind_param("iids", $dept_id, $vendor_id, $amount, $attachment_path);
 
     if (!$stmt->execute()) {
         echo 'Error: Database failed to generate Purchase Order.';
